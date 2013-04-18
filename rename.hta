@@ -1,0 +1,253 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<TITLE>File Rename</TITLE>
+<meta name="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript" src="md5.js          "></script>
+<script type="text/javascript">
+'use strict';
+    var file ={
+    
+    replaceAll: function(str, AFindText, ARepText) { 
+        var raRegExp = new RegExp(AFindText.replace(/([\(\)\[\]\{\}\^\$\+\-\*\?\.\"\'\|\/\\])/g,"\\$1"),"ig"); 
+        return String(str).replace(raRegExp,ARepText); 
+    },
+    
+    getFolderPath: function (FileID) {
+        var me = this;
+        var fso = new ActiveXObject("Scripting.FileSystemObject");
+        //取得指定路径
+        var filespec = document.getElementById(FileID).value;
+        err_msg.innerHTML = "";
+        //判断指定路径是否为空
+        if (filespec=="") {err_msg.innerHTML = "请选择文件路径!";return false;}
+        //判断指定路径文件是否存在
+        if (!fso.FileExists(filespec)) {
+            //判断指定路径是否是文件夹
+            if (!fso.FolderExists(filespec)) {
+                filespec = filespec.substring(0,filespec.lastIndexOf("\\"));
+                if (fso.FolderExists(filespec)) return filespec;
+                err_msg.innerHTML = "指定路径文件不存在!";
+                //指定路径既不是文件也不是文件夹,返回false
+                return false;
+            }
+            //指定路径是文件夹,返回文件夹的路径
+            return filespec;
+        }
+        //指定路径文件存在,返回指定路径文件的父文件夹的路径
+        return fso.GetFile(filespec).ParentFolder;
+    },
+    getSubFiles: function (folderspec) {
+        var me = this;
+        
+        var fso, f, fc;
+        fso = new ActiveXObject("Scripting.FileSystemObject");
+        if (!fso.FolderExists(folderspec)) return false;
+        f = fso.GetFolder(folderspec);
+        fc = new Enumerator(f.files);
+        return fc;
+    },
+    //获取子文件夹
+    getSubFolders: function (folderspec) {
+        var me = this;
+        
+        var fso, f, fc;
+        fso = new ActiveXObject("Scripting.FileSystemObject");
+        if (!fso.FolderExists(folderspec)) return false;
+        f = fso.GetFolder(folderspec);
+        fc = new Enumerator(f.SubFolders);
+        return fc;
+    },
+    example: function (FileID,type) {
+        var me = this;
+        
+        var folderspec = me.getFolderPath(FileID);
+        if (folderspec == false) {
+            alert("Err");
+            return;
+        }
+        //alert(folderspec);
+        /*alert(document.getElementById("replaceType").value);*/
+        me.init();
+        me.getItem(folderspec, me.type);
+
+        
+        document.getElementById("resultList").value = me.resultList_str;
+        alert("OK");
+    },
+    init: function () {
+        var me = this;
+        me.checkFile = document.getElementById("selectfile").checked;
+        me.checkFolder = document.getElementById("selectfolder").checked;
+        me.checkSubFolder = document.getElementById("selectsubfolder").checked,
+        
+        me.oldStr =  document.getElementById("old_str").value;
+        me.newStr =  document.getElementById("new_str").value;
+        
+        me.type = document.getElementById("replaceType").value;
+
+        me.resultList_str = '';
+        me.fso = new ActiveXObject("Scripting.FileSystemObject");
+        
+    },
+    /**
+     * 获取指定文件夹下的文件或子文件夹
+     * @param {string} folderspec 指定文件夹
+     */
+    getItem: function (folderspec, type) {
+        var me = this,
+            fc;
+        //文件
+        if (me.checkFile) {
+            fc = me.getSubFiles(folderspec);
+            for (; !fc.atEnd(); fc.moveNext()) {
+                me.changeName(fc.item(), type);
+            }
+        }
+        //文件夹
+        if (me.checkFolder) {
+            fc = me.getSubFolders(folderspec);
+            for (; !fc.atEnd(); fc.moveNext()) {
+                me.changeName(fc.item(), type);
+            }
+        }
+        //子文件夹
+        if (me.checkSubFolder) {
+            var e = me.getSubFolders(folderspec);
+            for (;!e.atEnd(); e.moveNext()) {
+                me.getItem(e.item().Path, type);
+            }
+        }
+    },
+    
+    changeName: function (f, type) {
+        var me = this,
+            newName,
+            preName,
+            extName;
+        
+        //替换指定字符串
+        if (type == 1) {
+            if (me.oldStr == '' || me.oldStr == me.newStr) return;
+            newName = me.replaceAll(f.name, me.oldStr, me.newStr);
+            if (f.type != '文件夹' && !me.fso.FileExists(f.ParentFolder + "/" + newName)) {
+                f.name = newName;
+                me.resultList_str += f.Path + "<br>";
+            }
+            if (f.type == '文件夹' && !me.fso.FolderExists(f.ParentFolder + "/" + newName)) {
+                f.name = newName;
+                me.resultList_str += f.Path + "<br>";
+            }
+        }
+        //增加前缀
+        if (type == 2 || type == 3 ) {
+            if (me.oldStr == '' || me.oldStr == me.newStr) return;
+            newName = (type == 2 ? me.oldStr : '') + f.name + (type == 3 ? me.oldStr : '');
+            if (f.type != '文件夹' && !me.fso.FileExists(f.ParentFolder + "/" + newName)) {
+                f.name = newName;
+                me.resultList_str += f.Path + "<br>";
+            }
+            if (f.type == '文件夹' && !me.fso.FolderExists(f.ParentFolder + "/" + newName)) {
+                f.name = newName;
+                me.resultList_str += f.Path + "<br>";
+            }
+        }
+        
+        //修改编码
+        if (type == 4) {
+            newName = encodeURIComponent(f.name);
+            if (newName == f.name) {
+                return;
+            }
+            
+            if (f.type == '文件夹' && !me.fso.FolderExists(f.ParentFolder + "/" + newName)) {
+                newName = String(MD5.encode(f.name)).toUpperCase();
+                
+                f.name = newName;
+                me.resultList_str += f.Path + "<br>";
+            }
+            if (f.type != '文件夹' && !me.fso.FileExists(f.ParentFolder + "/" + newName)) {
+                var list = f.name.split('.');
+                if (list.length>1) {
+                    extName = list.pop();
+                    //尚未发现有中文扩展名文件
+                    //if (extName != encodeURIComponent(extName)) {
+                    //    alert(extName);
+                    //}
+                }
+                preName = list.join('.');
+                newName = String(MD5.encode(preName)).toUpperCase();
+            
+                f.name = newName + '.' + extName;
+                me.resultList_str += f.Path + "<br>";
+            }
+            
+        }
+    }
+};
+
+</script>
+</head>
+
+<body>
+<h3>HTA文件名修改工具</h3>
+<table style="width: 80%; font-size:10pt;">
+    <tr>
+        <td colspan="4"></td>
+    </tr>
+    <tr>
+        <td>请选择路径:
+    </td>
+        <td colspan="3"><input name="File1" id="File1" type="file"><label id="err_msg"></label>&nbsp;(<span lang="zh-cn">注:不能直接选择文件夹对象)</span></td>
+    </tr>
+    <tr>
+        <td><span lang="zh-cn">文件类型:</span></td>
+        <td colspan="3">
+        <input name="selectfile" id="selectfile" type="checkbox" checked="checked" >文件&nbsp; 
+        <input name="selectsubfolder" id="selectsubfolder" type="checkbox">包含子文件夹 
+        <input name="selectfolder" id="selectfolder" type="checkbox">重命名文件夹 
+        </td>
+    </tr>
+    <tr>
+        <td><span lang="zh-cn">替换类型:</span></td>
+        <td><select name="replaceType" id="replaceType">
+        <option value="1" selected="selected">普通替换</option>
+        <option value="2">增加前缀</option>
+        <option value="3">增加后缀</option>
+        <option value="4">转换中文编码</option>
+        </select></td>
+        <td>&nbsp;</td>
+        <td>
+        &nbsp;</td>
+    </tr>
+    <tr>
+        <td>替换指定字符串<span lang="en-us">:</span></td>
+        <td><input name="Text1" id="old_str" type="text" size="20" value="[1]"></td>
+        <td><span lang="zh-cn">替换成</span>--&gt;</td>
+        <td>
+        <input name="Text2" id="new_str" type="text" size="20" value=""></td>
+    </tr>
+    <tr>
+        <td style="height: 30px">
+        </td>
+        <td style="height: 30px">
+    <input name="Button2" type="button" value="转换" onclick="file.example('File1',1);"></td>
+        <td style="height: 30px"></td>
+        <td style="height: 30px"></td>
+    </tr>
+    <tr>
+        <td>&nbsp;</td>
+        <td colspan="3">
+        <textarea id="resultList"style="width:450px; height:200px;overflow:auto;border:1px #ccc solid; word-break:break-all;white-space : normal;"></textarea>
+        <div id="resultList1" >2222</div>
+    &nbsp;</td>
+    </tr>
+</table>
+<script type="text/javascript">
+document.write(Math.random());
+</script>
+
+</body>
+
+</html>
